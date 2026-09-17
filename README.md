@@ -1,59 +1,70 @@
 # CambridgePastPapersAI
 
-This repository provides a page-aware PDF text-ingestion pipeline. It extracts
-text page by page, retains positioned text fragments, detects question boundaries,
-and sends compact candidate JSON to Gemini for structured output. The raw PDF is
-never uploaded to Gemini, and the pipeline does not render or store page images.
+Turns Cambridge past paper PDFs into structured JSON, one record per question, powered by Gemini.
 
-## Structure
 
-```text
-src/
-├── cli.ts                         # runnable entry point
-├── pipeline/
-│   └── ingest-papers.ts           # complete per-paper orchestration
-├── pdf/
-│   ├── pdf-document.ts            # PDF loading and lifecycle
-│   └── extract-pages.ts           # text + coordinates per page
-├── types/
-│   └── pdf-page.ts                # page, fragment, and bbox contracts
-├── questions/
-│   ├── segment-questions.ts       # 1, 1(a), 1(a)(i) boundaries
-│   └── build-questions.ts         # local merge and hallucination checks
-├── llm/
-│   └── gemini-question-extractor.ts
-├── schema/
-│   └── question.ts                # Zod source-of-truth schemas
-└── output/
-    ├── serialize-page-manifest.ts
-    └── save-questions.ts
-```
+Text is extracted page by page with its layout coordinates intact, which is what
+makes it possible to strip headers, footers, margin text and answer lines, and to
+find question boundaries like `1`, `1(a)`, `1(a)(i)`. Only the resulting question
+candidates are sent to Gemini, as compact JSON. The PDF itself is never uploaded.
 
-## Library choices
+Instead of uploading limit-intensive PDFs, you can now just copy-paste the JSON into ChatGPT. If you need this, hopefully you get an A*!
 
-- **Text extraction: `pdfjs-dist`**. It exposes page-level text items, transforms,
-  font names, directions, and dimensions. The pipeline therefore keeps a readable
-  `text` field plus `fragments` with bounding boxes and raw transforms rather than
-  flattening the PDF into an unstructured string.
-- **AI extraction: `@google/genai`**. Gemini receives only compact JSON question
-  candidates. There is deliberately no PDF or image upload path.
-- **Validation: `zod`**. Zod is the runtime source of truth, with `z.infer`
-  producing the TypeScript types.
+## Preview
 
-Bounding boxes are `[left, top, right, bottom]` in the scale-1 PDF.js viewport,
-with a top-left origin. Raw PDF.js transforms are also retained so text order and
-layout clues are not flattened into one unstructured document-wide string.
+<img src="preview_img.png" width="700" alt="Preview">
 
-## Run
 
-Node.js 22.13 or newer is required.
-
+## Setup
 ```powershell
 npm install
-npm run ingest
+copy .env.example .env
 ```
 
-The CLI automatically loads `.env` from the project root. Supported settings are:
+Put your Gemini API key in `.env`.
+
+```powershell
+npm run dev
+```
+
+## Output
+
+Input subdirectories are mirrored, so papers with the same filename don't collide:
+
+```text
+data/
+├── past_papers/
+│   ├── maths-paper-1.pdf
+│   └── physics/
+│       └── mechanics.pdf
+└── parsed_papers/
+    ├── maths-paper-1/
+    │   ├── extracted-pages.json
+    │   └── questions.json
+    └── physics/
+        └── mechanics/
+            ├── extracted-pages.json
+            └── questions.json
+```
+
+`questions.json` holds the normalized questions. `extracted-pages.json` is the raw
+page text plus fragment coordinates, kept for debugging. If Gemini fails, the paper
+directory keeps its manifest and gets a `question-extraction-error.json` instead.
+
+A paper's output directory is deleted and rebuilt on every run, so stale files
+can't survive a replaced PDF.
+
+## What comes from where
+
+Question text, numbering, page numbers and printed mark allocations all come from
+the local extraction. Gemini only supplies `topic`, `subtopic`, `questionType`, and
+marks when none were printed. Its responses are schema-constrained, checked against
+the candidate IDs that were sent, and validated with Zod; wording it returns that
+isn't backed by the source text is discarded.
+
+## Settings
+
+All optional except the API key. Defaults shown.
 
 ```dotenv
 GEMINI_API_KEY=
@@ -66,52 +77,28 @@ PAST_PAPERS_DIR=data/past_papers
 PARSED_PAPERS_DIR=data/parsed_papers
 ```
 
-Copy `.env.example` to `.env` and fill in values as needed. Startup logging reports
-whether `GEMINI_API_KEY` is configured but never prints the key itself. Important
-pipeline events are logged with an `[IMPORTANT]` prefix, including discovery,
-per-paper output deletion, completion, failures, and the final summary.
+Each retry moves to the next fallback model, and rate-limit delays returned by the
+API are honoured.
 
-Gemini receives only the segmented candidates needed for the current batch—not
-the large `extracted-pages.json` manifest—and returns marks and classifications
-without echoing the question wording. The application keeps the authoritative
-local text, page numbers, and coordinates. Raw PDF and image uploads are not
-implemented, so they cannot be enabled accidentally through configuration.
-
-Place source PDFs anywhere below `data/past_papers/`. The command discovers them
-recursively and mirrors their relative paths under `data/parsed_papers/`:
+## Layout
 
 ```text
-data/
-├── past_papers/
-│   ├── biology-paper-2.pdf
-│   └── physics/
-│       └── mechanics-paper.pdf
-└── parsed_papers/
-    ├── biology-paper-2/
-    │   ├── extracted-pages.json
-    │   └── questions.json
-    └── physics/
-        └── mechanics-paper/
-            ├── extracted-pages.json
-            └── questions.json
+src/
+├── cli.ts                          # entry point
+├── pipeline/ingest-papers.ts       # per-paper orchestration
+├── pdf/
+│   ├── pdf-document.ts             # loading and lifecycle
+│   ├── extract-pages.ts            # text + coordinates per page
+│   └── text-layout.ts              # fragments to lines, x^2 and T_n notation
+├── questions/
+│   ├── segment-questions.ts        # question boundaries, boilerplate removal
+│   └── build-questions.ts          # merge local text with model metadata
+├── llm/gemini-question-extractor.ts
+├── schema/question.ts              # Zod schemas, source of truth for types
+└── output/                         # serializers
 ```
 
-`questions.json` is the normalized output. Page numbers are assigned by the
-application, not Gemini. Gemini output is schema-constrained and
-then validated with Zod; model wording that is not sufficiently supported by the
-local text falls back to the extracted source wording. If AI extraction fails, the
-paper directory retains its local text manifest and gets a compact
-`question-extraction-error.json` diagnostic.
-
-`extracted-pages.json` uses compact page-level formatting and never exceeds 1,000
-lines. Each extracted page normally occupies one line. Extremely long documents
-fall back to one-line minified JSON without discarding text or coordinates.
-
-Before parsing a paper, the pipeline removes that paper's existing directory below
-`data/parsed_papers/` and recreates it. This prevents stale output from surviving
-when a source PDF is replaced with a shorter or revised version.
-
-## Verify
+## Checks
 
 ```powershell
 npm run typecheck

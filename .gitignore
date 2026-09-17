@@ -9,8 +9,6 @@ dist/
 coverage/
 
 # Local environment files
-.env
-.env.*
 !.env.example
 
 tmp/
@@ -29,4 +27,4 @@ data/parsed_papers/*
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
+config.bat
