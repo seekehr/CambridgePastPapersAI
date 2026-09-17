@@ -5,33 +5,10 @@ import type {
   TextFragment,
 } from "../types/pdf-page.js";
 import { withPdfDocument } from "./pdf-document.js";
+import { createReadablePageText } from "./text-layout.js";
 
 function round(value: number): number {
   return Math.round(value * 1_000) / 1_000;
-}
-
-function createReadableText(fragments: TextFragment[]): string {
-  let result = "";
-
-  for (const fragment of fragments) {
-    const needsSpace =
-      result.length > 0 &&
-      !result.endsWith("\n") &&
-      !/\s$/u.test(result) &&
-      !/^\s/u.test(fragment.text);
-
-    if (needsSpace) {
-      result += " ";
-    }
-
-    result += fragment.text;
-
-    if (fragment.hasEOL) {
-      result = result.trimEnd() + "\n";
-    }
-  }
-
-  return result.trim();
 }
 
 /**
@@ -82,7 +59,7 @@ export async function extractPages(inputPath: string): Promise<ExtractedPage[]> 
         width: round(viewport.width),
         height: round(viewport.height),
         rotation: viewport.rotation,
-        text: createReadableText(fragments),
+        text: createReadablePageText(fragments),
         fragments,
       });
 

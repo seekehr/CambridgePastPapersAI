@@ -13,8 +13,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^2.23.0",
     "@napi-rs/canvas": "^1.0.9",
-    "pdfjs-dist": "^6.3.289"
+    "pdfjs-dist": "^6.3.289",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

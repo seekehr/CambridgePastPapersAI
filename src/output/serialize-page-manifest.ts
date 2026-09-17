@@ -1,15 +1,14 @@
-import type { ExtractedPage, RenderedPage } from "../types/pdf-page.js";
+import type { ExtractedPage } from "../types/pdf-page.js";
 
 export const MAX_MANIFEST_LINES = 1_000;
 
 export interface PageManifest {
   source: string;
   extractedPages: ExtractedPage[];
-  renderedPages: RenderedPage[];
 }
 
 /**
- * Produces valid JSON with one compact line per extracted/rendered page. If an
+ * Produces valid JSON with one compact line per extracted page. If an
  * unusually long document would exceed the cap, the entire manifest is safely
  * minified to one line without dropping any extraction data.
  */
@@ -29,14 +28,6 @@ export function serializePageManifest(
       (page, index) =>
         `    ${JSON.stringify(page)}${
           index < manifest.extractedPages.length - 1 ? "," : ""
-        }`,
-    ),
-    "  ],",
-    '  "renderedPages": [',
-    ...manifest.renderedPages.map(
-      (page, index) =>
-        `    ${JSON.stringify(page)}${
-          index < manifest.renderedPages.length - 1 ? "," : ""
         }`,
     ),
     "  ]",

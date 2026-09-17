@@ -23,11 +23,3 @@ export interface ExtractedPage {
   text: string;
   fragments: TextFragment[];
 }
-
-export interface RenderedPage {
-  pageNumber: number;
-  path: string;
-  width: number;
-  height: number;
-  scale: number;
-}
