@@ -13,6 +13,8 @@ coverage/
 .env.*
 !.env.example
 
+tmp/
+
 # PDF inputs and generated artifacts. Keep the expected directories only.
 data/*
 !data/past_papers/
