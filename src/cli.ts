@@ -1,57 +1,38 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { basename, resolve } from "node:path";
-import { parseArgs } from "node:util";
-
-import { extractPages } from "./pdf/extract-pages.js";
-import { renderPages } from "./pdf/render-pages.js";
-
-function printUsage(): void {
-  console.log(
-    "Usage: npm run ingest -- <paper.pdf> [--output data/paper] [--scale 2]",
-  );
-}
+import { ingestPastPapers } from "./pipeline/ingest-papers.js";
 
 async function main(): Promise<void> {
-  const { positionals, values } = parseArgs({
-    allowPositionals: true,
-    options: {
-      output: { type: "string", short: "o" },
-      scale: { type: "string", default: "2" },
-      help: { type: "boolean", short: "h", default: false },
-    },
-  });
+  if (process.argv.length > 2) {
+    throw new Error(
+      "This command does not accept input paths. Put PDFs in data/past_papers and run `npm run ingest`.",
+    );
+  }
 
-  const inputPath = positionals[0];
+  const summary = await ingestPastPapers();
 
-  if (values.help || !inputPath) {
-    printUsage();
-    process.exitCode = inputPath ? 0 : 1;
+  if (summary.discovered === 0) {
+    console.log(
+      `No PDF files found in ${summary.inputDir}. Add papers there and run the command again.`,
+    );
     return;
   }
 
-  const paperName = basename(inputPath).replace(/\.pdf$/iu, "");
-  const outputDir = resolve(values.output ?? `data/${paperName}`);
-  const imageDir = resolve(outputDir, "pages");
-  const scale = Number(values.scale);
+  for (const paper of summary.completed) {
+    console.log(
+      `Parsed ${paper.source} (${paper.pageCount} pages) -> ${paper.outputDir}`,
+    );
+  }
 
-  await mkdir(outputDir, { recursive: true });
+  for (const failure of summary.failed) {
+    console.error(`Failed ${failure.source}: ${failure.message}`);
+  }
 
-  const extractedPages = await extractPages(inputPath);
-  const renderedPages = await renderPages(inputPath, {
-    outputDir: imageDir,
-    scale,
-  });
-
-  const manifestPath = resolve(outputDir, "extracted-pages.json");
-  await writeFile(
-    manifestPath,
-    `${JSON.stringify({ source: resolve(inputPath), extractedPages, renderedPages }, null, 2)}\n`,
-    "utf8",
+  console.log(
+    `Finished: ${summary.completed.length} parsed, ${summary.failed.length} failed.`,
   );
 
-  console.log(`Extracted ${extractedPages.length} pages.`);
-  console.log(`Manifest: ${manifestPath}`);
-  console.log(`Page images: ${imageDir}`);
+  if (summary.failed.length > 0) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error: unknown) => {

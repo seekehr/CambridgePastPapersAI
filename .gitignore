@@ -13,9 +13,14 @@ coverage/
 .env.*
 !.env.example
 
-# Generated PDF ingestion data. Keep the directory in the repository.
+# PDF inputs and generated artifacts. Keep the expected directories only.
 data/*
-!data/.gitkeep
+!data/past_papers/
+!data/parsed_papers/
+data/past_papers/*
+!data/past_papers/.gitkeep
+data/parsed_papers/*
+!data/parsed_papers/.gitkeep
 
 # Logs and editor/OS files
 *.log

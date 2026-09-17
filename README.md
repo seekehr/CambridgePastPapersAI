@@ -10,6 +10,8 @@ available to later pipeline stages.
 ```text
 src/
 ├── cli.ts                         # runnable entry point
+├── pipeline/
+│   └── ingest-papers.ts           # scans and ingests all source PDFs
 ├── pdf/
 │   ├── pdf-document.ts            # PDF loading and lifecycle
 │   ├── extract-pages.ts           # implemented: text + coordinates per page
@@ -56,24 +58,39 @@ Node.js 22.13 or newer is required.
 
 ```powershell
 npm install
-npm run ingest -- .\path\to\paper.pdf --scale 2
+npm run ingest
 ```
 
-The command writes:
+Place source PDFs anywhere below `data/past_papers/`. The command discovers them
+recursively and mirrors their relative paths under `data/parsed_papers/`:
 
 ```text
-data/paper/
-├── extracted-pages.json  # text, fragments, page geometry, and image manifest
-└── pages/
-    ├── page-0001.png
-    ├── page-0002.png
-    └── ...
+data/
+├── past_papers/
+│   ├── biology-paper-2.pdf
+│   └── physics/
+│       └── mechanics-paper.pdf
+└── parsed_papers/
+    ├── biology-paper-2/
+    │   ├── extracted-pages.json
+    │   └── pages/
+    │       ├── page-0001.png
+    │       └── ...
+    └── physics/
+        └── mechanics-paper/
+            ├── extracted-pages.json
+            └── pages/
+                └── ...
 ```
 
 The CLI manifest is an inspection artifact for this first milestone, not the final
-normalized question JSON. Generated files under `data/` are ignored by Git, while
-`data/.gitkeep` keeps the expected directory in a fresh checkout. Use `--output`
-to select a different directory when needed.
+normalized question JSON. The PDF inputs and generated files are ignored by Git,
+while `.gitkeep` files preserve both expected data directories in a fresh checkout.
+
+`extracted-pages.json` uses compact page-level formatting and never exceeds 1,000
+lines. Each extracted and rendered page normally occupies one line. Extremely long
+documents fall back to one-line minified JSON without discarding text, coordinates,
+or image metadata.
 
 ## Verify
 

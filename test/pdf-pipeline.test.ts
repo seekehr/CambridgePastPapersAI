@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -6,7 +6,13 @@ import { loadImage } from "@napi-rs/canvas";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { extractPages, renderPages } from "../src/index.js";
+import {
+  extractPages,
+  ingestPastPapers,
+  MAX_MANIFEST_LINES,
+  renderPages,
+  serializePageManifest,
+} from "../src/index.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -86,5 +92,73 @@ describe("PDF ingestion foundation", () => {
     const image = await loadImage(png);
     expect(image.width).toBe(Math.ceil(595 * 1.5));
     expect(image.height).toBe(Math.ceil(842 * 1.5));
+  });
+
+  it("discovers all papers and mirrors nested input directories", async () => {
+    const { directory, pdfPath } = await createFixture();
+    const inputDir = join(directory, "past_papers");
+    const nestedInputDir = join(inputDir, "physics");
+    const nestedPdfPath = join(nestedInputDir, "mechanics.PDF");
+    const outputDir = join(directory, "parsed_papers");
+
+    await mkdir(nestedInputDir, { recursive: true });
+    await rename(pdfPath, nestedPdfPath);
+
+    const summary = await ingestPastPapers({
+      inputDir,
+      outputDir,
+      renderScale: 1,
+    });
+
+    expect(summary.discovered).toBe(1);
+    expect(summary.failed).toEqual([]);
+    expect(summary.completed).toHaveLength(1);
+    expect(summary.completed[0]?.outputDir).toBe(
+      join(outputDir, "physics", "mechanics"),
+    );
+
+    const manifestText = await readFile(
+      summary.completed[0]!.manifestPath,
+      "utf8",
+    );
+    expect(manifestText.trimEnd().split(/\r?\n/u).length).toBeLessThanOrEqual(
+      MAX_MANIFEST_LINES,
+    );
+
+    const manifest = JSON.parse(manifestText) as {
+      extractedPages: unknown[];
+      renderedPages: unknown[];
+    };
+    expect(manifest.extractedPages).toHaveLength(2);
+    expect(manifest.renderedPages).toHaveLength(2);
+  });
+
+  it("minifies exceptionally long manifests to enforce the line limit", () => {
+    const extractedPages = Array.from({ length: 600 }, (_, index) => ({
+      pageNumber: index + 1,
+      width: 595,
+      height: 842,
+      rotation: 0,
+      text: `Page ${index + 1}`,
+      fragments: [],
+    }));
+    const renderedPages = Array.from({ length: 600 }, (_, index) => ({
+      pageNumber: index + 1,
+      path: `page-${index + 1}.png`,
+      width: 1_190,
+      height: 1_684,
+      scale: 2,
+    }));
+
+    const serialized = serializePageManifest({
+      source: "long-paper.pdf",
+      extractedPages,
+      renderedPages,
+    });
+
+    expect(serialized.trimEnd().split(/\r?\n/u)).toHaveLength(1);
+    expect(
+      (JSON.parse(serialized) as { extractedPages: unknown[] }).extractedPages,
+    ).toHaveLength(600);
   });
 });
