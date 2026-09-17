@@ -190,6 +190,87 @@ describe("PDF ingestion foundation", () => {
     expect(candidates[1]?.text).toContain("Find the nth term.");
   });
 
+  it("drops the copyright acknowledgements block from the final question", () => {
+    const pages: ExtractedPage[] = [
+      {
+        pageNumber: 1,
+        width: 300,
+        height: 400,
+        rotation: 0,
+        text: "",
+        fragments: [
+          fragment("1", 10, 40, 5),
+          fragment("Expand and simplify.", 30, 40, 90),
+          fragment("[3]", 160, 65, 15),
+          fragment(
+            "Permission to reproduce items where third-party owned material protected by copyright is included has been sought and cleared where possible. Every",
+            20,
+            300,
+            260,
+          ),
+          fragment(
+            "reasonable effort has been made by the publisher (Cambridge University Press & Assessment) to trace copyright holders, but if any items requiring clearance",
+            20,
+            312,
+            260,
+          ),
+          fragment(
+            "have unwittingly been included, the publisher will be pleased to make amends at the earliest possible opportunity.",
+            20,
+            324,
+            260,
+          ),
+          fragment(
+            "To avoid the issue of disclosure of answer-related information to candidates, all copyright acknowledgements are reproduced online in our Copyright",
+            20,
+            336,
+            260,
+          ),
+          fragment("University of Cambridge.", 20, 348, 100),
+        ],
+      },
+    ];
+
+    const candidates = segmentQuestions(pages);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.text).toContain("Expand and simplify.");
+    expect(candidates[0]?.text).not.toContain("reasonable effort");
+    expect(candidates[0]?.text).not.toContain("copyright acknowledgements");
+    expect(candidates[0]?.text).not.toContain("University of Cambridge");
+  });
+
+  it("drops the copyright acknowledgements block from plain page text too", () => {
+    const pages: ExtractedPage[] = [
+      {
+        pageNumber: 1,
+        width: 300,
+        height: 200,
+        rotation: 0,
+        text: [
+          "",
+          "1 Expand and simplify.",
+          "[3]",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Permission to reproduce items where third-party owned material is included.",
+          "reasonable effort has been made by the publisher to trace copyright holders.",
+        ].join("\n"),
+        fragments: [],
+      },
+    ];
+
+    const candidates = segmentQuestions(pages);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.text).toContain("Expand and simplify.");
+    expect(candidates[0]?.text).not.toContain("reasonable effort");
+  });
+
   it("discovers all papers and mirrors nested input directories", async () => {
     const { directory, pdfPath } = await createFixture();
     const inputDir = join(directory, "past_papers");

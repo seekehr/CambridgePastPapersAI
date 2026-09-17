@@ -51,22 +51,43 @@ function linesFromFragments(page: ExtractedPage): PageLine[] {
   }));
 }
 
+/**
+ * Copyright acknowledgements sit in a block at the foot of a paper's final
+ * page. Its opening sentence and every line below it are boilerplate, so the
+ * page is truncated there instead of letting the block run into the last
+ * question. Individual boilerplate lines are still dropped by cleanLineText.
+ */
+const COPYRIGHT_FOOTER_START =
+  /^(?:Permission to reproduce items where|To avoid the issue of disclosure)/iu;
+
+function withoutCopyrightFooter(lines: PageLine[]): PageLine[] {
+  const start = lines.findIndex(
+    (line) =>
+      line.top > line.pageHeight * 0.5 &&
+      COPYRIGHT_FOOTER_START.test(line.text.replace(/\s+/gu, " ").trim()),
+  );
+
+  return start === -1 ? lines : lines.slice(0, start);
+}
+
 function linesFromPage(page: ExtractedPage): PageLine[] {
   if (page.fragments.length > 0) {
-    return linesFromFragments(page);
+    return withoutCopyrightFooter(linesFromFragments(page));
   }
 
-  return page.text
-    .split(/\r?\n/u)
-    .map((text, index) => ({
-      pageNumber: page.pageNumber,
-      pageWidth: page.width,
-      pageHeight: page.height,
-      left: 0,
-      top: index * 12,
-      text: text.trim(),
-    }))
-    .filter((line) => line.text.length > 0);
+  return withoutCopyrightFooter(
+    page.text
+      .split(/\r?\n/u)
+      .map((text, index) => ({
+        pageNumber: page.pageNumber,
+        pageWidth: page.width,
+        pageHeight: page.height,
+        left: 0,
+        top: index * 12,
+        text: text.trim(),
+      }))
+      .filter((line) => line.text.length > 0),
+  );
 }
 
 function cleanLineText(line: PageLine): string | undefined {
@@ -84,7 +105,11 @@ function cleanLineText(line: PageLine): string | undefined {
     /DO NOT WRITE (?:IN THIS MARGIN|OUTSIDE THE BOX)/iu.test(text) ||
     /^(?:©\s*)?UCLES\b/iu.test(text) ||
     /^©\s*Cambridge\b/iu.test(text) ||
-    /^Cambridge (?:International|University Press)/iu.test(text) ||
+    /^Cambridge (?:Assessment )?(?:International|University Press)/iu.test(
+      text,
+    ) ||
+    /^Acknowledgements Booklet\b/iu.test(text) ||
+    /^University of Cambridge\.?$/iu.test(text) ||
     /^Trace ID:/iu.test(text) ||
     /^Re-uploading, mirroring or re-hosting/iu.test(text) ||
     /^Licensed for hosting on /iu.test(text) ||
