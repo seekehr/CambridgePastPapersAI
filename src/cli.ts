@@ -6,8 +6,13 @@ import {
   type IngestionEvent,
 } from "./pipeline/ingest-papers.js";
 
+/** Reserved for destructive actions, per-paper outcomes, and the run summary. */
 function important(message: string): void {
   console.log(`[IMPORTANT] ${message}`);
+}
+
+function info(message: string): void {
+  console.log(message);
 }
 
 function logIngestionEvent(event: IngestionEvent): void {
@@ -16,23 +21,21 @@ function logIngestionEvent(event: IngestionEvent): void {
       important(`Found ${event.count} PDF paper(s) in ${event.inputDir}`);
       break;
     case "paper-start":
-      important(`Starting ${event.source}`);
-      important(`Output target: ${event.outputDir}`);
+      info(`Starting ${event.source}`);
+      info(`Output target: ${event.outputDir}`);
       break;
     case "paper-reset":
-      important(
-        event.previouslyExisted
-          ? `Deleted existing paper output: ${event.outputDir}`
-          : `Creating new paper output: ${event.outputDir}`,
-      );
+      if (event.previouslyExisted) {
+        important(`Deleted existing paper output: ${event.outputDir}`);
+      } else {
+        info(`Creating new paper output: ${event.outputDir}`);
+      }
       break;
     case "question-candidates":
-      important(
-        `Detected ${event.count} question candidate(s) in ${event.source}`,
-      );
+      info(`Detected ${event.count} question candidate(s) in ${event.source}`);
       break;
     case "gemini-progress":
-      important(`${event.message} [${event.source}]`);
+      info(`${event.message} [${event.source}]`);
       break;
     case "questions-written":
       important(`Wrote ${event.count} validated question(s) to ${event.path}`);
@@ -58,30 +61,28 @@ async function main(): Promise<void> {
   }
 
   const environment = loadEnvironment();
-  important(
+  info(
     environment.envFileLoaded
       ? `Loaded environment file: ${environment.envFilePath}`
       : `No .env file found at ${environment.envFilePath}; using defaults and OS environment variables`,
   );
-  important(`Gemini model: ${environment.geminiModel}`);
-  important("Gemini input: compact question JSON only (file uploads disabled)");
-  important(
+  info(`Gemini model: ${environment.geminiModel}`);
+  info("Gemini input: compact question JSON only (file uploads disabled)");
+  info(
     `Gemini fallback models: ${
       environment.geminiFallbackModels.join(", ") || "none"
     }`,
   );
-  important(`Gemini batch size: ${environment.geminiBatchSize}`);
-  important(`Gemini retries per batch: ${environment.geminiMaxRetries}`);
-  important(
-    `Gemini delay between batches: ${environment.geminiRequestDelayMs}ms`,
-  );
-  important(
+  info(`Gemini batch size: ${environment.geminiBatchSize}`);
+  info(`Gemini retries per batch: ${environment.geminiMaxRetries}`);
+  info(`Gemini delay between batches: ${environment.geminiRequestDelayMs}ms`);
+  info(
     `Gemini API key: ${
       environment.geminiApiKeyConfigured ? "configured" : "NOT configured"
     } (value hidden)`,
   );
-  important(`Past papers directory: ${resolve(environment.inputDir)}`);
-  important(`Parsed papers directory: ${resolve(environment.outputDir)}`);
+  info(`Past papers directory: ${resolve(environment.inputDir)}`);
+  info(`Parsed papers directory: ${resolve(environment.outputDir)}`);
 
   if (!environment.geminiApiKey) {
     throw new Error(
