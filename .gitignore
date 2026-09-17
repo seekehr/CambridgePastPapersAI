@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# TypeScript build output
+dist/
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Generated PDF ingestion data. Keep the directory in the repository.
+data/*
+!data/.gitkeep
+
+# Logs and editor/OS files
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
