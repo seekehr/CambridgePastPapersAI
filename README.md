@@ -117,3 +117,5 @@ when a source PDF is replaced with a shorter or revised version.
 npm run typecheck
 npm test
 ```
+
+;D
