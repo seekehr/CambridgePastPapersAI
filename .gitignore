@@ -24,6 +24,9 @@ data/past_papers/*
 data/parsed_papers/*
 !data/parsed_papers/.gitkeep
 
+build/
+build/*
+
 # Logs and editor/OS files
 *.log
 .DS_Store
