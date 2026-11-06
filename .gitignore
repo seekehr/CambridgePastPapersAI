@@ -9,8 +9,6 @@ dist/
 coverage/
 
 # Local environment files
-.env
-.env.*
 !.env.example
 
 tmp/
@@ -24,9 +22,12 @@ data/past_papers/*
 data/parsed_papers/*
 !data/parsed_papers/.gitkeep
 
+build/
+build/*
+
 # Logs and editor/OS files
 *.log
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
+config.bat

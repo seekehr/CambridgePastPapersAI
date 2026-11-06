@@ -7,7 +7,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node init && tsc -p tsconfig.build.json",
     "ingest": "tsx src/cli.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -15,6 +15,7 @@
   "dependencies": {
     "@google/genai": "^2.23.0",
     "@napi-rs/canvas": "^1.0.9",
+    "node-fetch": "^3.3.2",
     "pdfjs-dist": "^6.3.289",
     "zod": "^4.6.5"
   },
