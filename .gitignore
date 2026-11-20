@@ -9,8 +9,6 @@ dist/
 coverage/
 
 # Local environment files
-.env
-.env.*
 !.env.example
 
 tmp/
@@ -32,4 +30,4 @@ build/*
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
+config.bat
