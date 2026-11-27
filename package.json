@@ -17,7 +17,7 @@
     "@napi-rs/canvas": "^1.0.9",
     "node-fetch": "^3.3.2",
     "pdfjs-dist": "^6.3.289",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
